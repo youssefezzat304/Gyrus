@@ -11,9 +11,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		E8B9F7E53076CD8000E6263F /* Gyrus */ = {
+		E8B9F7E53076CD8000E6263F /* Sources */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Gyrus;
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		E8B9F7F13076CD8100E6263F /* Resources */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Resources;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -30,7 +35,8 @@
 		E8B9F7DA3076CD8000E6263F = {
 			isa = PBXGroup;
 			children = (
-				E8B9F7E53076CD8000E6263F /* Gyrus */,
+				E8B9F7E53076CD8000E6263F /* Sources */,
+				E8B9F7F13076CD8100E6263F /* Resources */,
 				E8B9F7E43076CD8000E6263F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -57,7 +63,8 @@
 			buildRules = (
 			);
 			fileSystemSynchronizedGroups = (
-				E8B9F7E53076CD8000E6263F /* Gyrus */,
+				E8B9F7E53076CD8000E6263F /* Sources */,
+				E8B9F7F13076CD8100E6263F /* Resources */,
 			);
 			name = Gyrus;
 			productName = Gyrus;

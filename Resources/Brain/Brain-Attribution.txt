@@ -1,0 +1,25 @@
+Anatomical spatial reference
+
+Source: OpenNeuro ds006128, snapshot 1.0.11, subject sub-01.
+"Data for Modeling 2D Spatio-Tactile Population Receptive Fields of the
+Fingertip in Human Primary Somatosensory Cortex."
+Authors: Susanne Stoll, Falk Luesebrink, D. Samuel Schwarzkopf,
+Hendrik Mattern, Peng Liu, Johanna Noelle, Esther Kuehn.
+https://doi.org/10.18112/openneuro.ds006128.v1.0.11
+License: CC0 1.0 Universal.
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Derived bilateral pial surface retrieved from Cerebrum / brain-explorer:
+https://github.com/StarKnightt/brain-explorer
+Commit: d778b990dac88c2442ae67b83134537c0883db17
+Asset: public/models/brain-atlas.glb (unified-cortex mesh only).
+SHA256: ce761741d866e32d7a5b7638f4cacd5ec03e2b582e72c8218aba483ac28125e8
+See that repository's THIRD_PARTY_NOTICES.md and brain-atlas.provenance.json
+for source surface checksums and the decimation/reorientation pipeline.
+
+Gyrus modifications: extracted only the bilateral pial cortex (75,132
+vertices, 150,256 triangles), centered and normalized it, mapped native
+signed curvature to cortical exposure, and encoded Cortex.brainmesh.
+The asset is an invisible spatial reference, never a rendered surface.
+Tools/prepare_brain_mesh.py reproduces the checksum-verified conversion.
+No application code from Cerebrum was incorporated.

@@ -1,0 +1,67 @@
+import simd
+
+/// The visual workbench. Sizes are in logical screen pixels, distances in brain-space units.
+enum VisualConfiguration {
+    static let particleCount = 25_000
+    static let surfaceParticleRatio: Float = 0.86
+    static let internalParticleRatio: Float = 0.12
+    static let particleMinSize: Float = 1.7
+    static let particleMaxSize: Float = 3.3
+    static let particleSpriteScale: Float = 2.6
+    static let triangleFill: Float = 0.20
+    static let triangleStroke: Float = 0.80
+    static let baseParticleBrightness: Float = 1.8
+    static let internalBrightness: Float = 0.32
+    static let peripheralBrightness: Float = 0.17
+    static let internalDepth: ClosedRange<Float> = 0.025...0.24
+    static let depthFadeStrength: Float = 1.3
+    static let corticalOcclusionStrength: Float = 16
+    static let corticalContrast: Float = 1.8
+    static let seed: UInt64 = 0x4759525553
+    static let brainScale: Float = 1
+    static let brainYaw: Float = -62 * .pi / 180
+    static let brainPitch: Float = 10 * .pi / 180
+    static let dragSensitivity: Float = 0.005
+    static let dragThreshold: Float = 4
+    static let idleYawAmount: Float = 1.6 * .pi / 180
+    static let idlePitchAmount: Float = 0.6 * .pi / 180
+    static let idleRotationSpeed: Float = 0.19
+    static let idleFloatAmount: Float = 0.012
+    static let shimmerFraction: Float = 0.035
+    static let shimmerAmount: Float = 0.045
+    static let backgroundColor = SIMD3<Float>(3, 3, 5) / 255
+    static let emptyBackgroundColor = SIMD3<Float>(2, 2, 4) / 255
+    static let backgroundIllumination: Float = 0.005
+    static let activeRegionCount = 8
+    static let activeColor = SIMD3<Float>(0.459, 0.424, 1)
+    static let activeRadius: Float = 0.21
+    static let activeGlowIntensity: Float = 1.6
+    static let activeCenterScale: Float = 2.0
+    static let activePulseAmount: Float = 0.07
+    static let hoverRadius: Float = 18
+    static let hoverExpansion: Float = 0.16
+    static let hoverResponse: Float = 8
+    static let particleHitRadius: Float = 7
+    static let hoverFalloffRadius: Float = 52
+    static let hoverCenterDiameter: Float = 26
+    static let hoverNeighborDiameter: Float = 16
+    static let hoverDepthTolerance: Float = 0.18
+    static let bloomStrength: Float = 0.20
+    static let bloomThreshold: Float = 0.65
+    static let bloomRadius: Float = 2.5
+    static let exposure: Float = 1.15
+    static let lightResponseGamma: Float = 2.2
+    static let cameraFOV: Float = 34 * .pi / 180
+    static let cameraStartDistance: Float = 5.6
+    static let cameraNear: Float = 0.012
+    static let cameraFar: Float = 30
+    static let cameraTarget = SIMD3<Float>(0, -0.055, 0)
+    static let diveDuration: Double = 2.3
+    static let returnDuration: Double = 1.5
+    static let activationDuration: Float = 0.20
+    static let diveAlignmentEnd: Float = 0.36
+    static let diveAcceleration: Float = 2.2
+    static let diveTravelBeyondSurface: Float = 1.65
+    static let fadeStartProgress: Float = 0.68
+    static let violetFadeStartProgress: Float = 0.78
+}
