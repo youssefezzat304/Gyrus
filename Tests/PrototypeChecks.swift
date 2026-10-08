@@ -261,6 +261,8 @@ struct PrototypeChecks {
         // Exercise the native view's actual event handlers with detached event fixtures.
         // These events are never posted to the system or another application.
         let inputRenderer = try BrainRenderer(device: device, geometry: geometry, library: library)
+        var inputAnchor: BrainAnchor?
+        inputRenderer.onParticleClicked = { inputAnchor = $0 }
         let inputView = ParticleMetalView(frame: NSRect(x: 0, y: 0, width: 1200, height: 800), device: device)
         inputView.isPaused = true
         inputView.renderer = inputRenderer
@@ -291,7 +293,10 @@ struct PrototypeChecks {
         inputView.mouseDown(with: event(.leftMouseDown, at: clickPoint))
         inputView.mouseDragged(with: event(.leftMouseDragged, at: clickPoint + SIMD2(1, 1)))
         inputView.mouseUp(with: event(.leftMouseUp, at: clickPoint + SIMD2(1, 1)))
-        guard case .diving = inputRenderer.camera.phase else { fatalError("A click with tiny hand movement must still enter the thought") }
+        precondition(inputAnchor != nil && inputRenderer.camera.phase == .brain,
+                     "A click must request a topic before entering; tiny hand movement still counts as a click")
+        precondition(inputRenderer.enterTopic(at: inputAnchor!, size: size))
+        guard case .diving = inputRenderer.camera.phase else { fatalError("Naming a topic must start entry") }
         print("PASS: 25k white triangles, single accent, radial hover sizes/release/occlusion, native hover/drag/click handlers, rotated picking, dive/return, preserved orientation, repeat entry, GPU rendering. Frames: \(output.path)")
     }
 }

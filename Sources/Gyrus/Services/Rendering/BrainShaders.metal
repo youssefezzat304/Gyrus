@@ -51,8 +51,10 @@ vertex PointOut brainParticle(uint id [[vertex_id]], constant Particle *particle
     // As we enter, the light comes from the volume rather than an external surface.
     light = mix(light * depthLight, 0.62f, smoothstep(0.40f, 0.73f, u.activity.w));
     float influence = 0, boost = 1;
+    int centerIndex = p.position.w > 2.5f ? int(p.appearance.w) : -1;
     for (uint i = 0; i < uint(u.control.x); ++i) {
         Region r = regions[i];
+        if (int(id) == int(r.interaction.y)) centerIndex = int(i);
         float selected = (int(i) == int(u.transition.y)) ? u.transition.x : 0.0f;
         float radius = u.accent.w * (1 + r.interaction.x * u.activity.z + selected * 0.45f);
         float3 delta = p.position.xyz - r.positionPhase.xyz;
@@ -65,13 +67,14 @@ vertex PointOut brainParticle(uint id [[vertex_id]], constant Particle *particle
         influence = max(influence, local);
         boost = max(boost, 1 + local * u.activity.y * pulse * (1 + r.interaction.x * 0.25f + selected * 1.4f));
     }
-    bool center = p.position.w > 2.5f;
+    bool center = centerIndex >= 0;
     if (center) {
-        int i = int(p.appearance.w);
+        int i = centerIndex;
         float selected = i == int(u.transition.y) ? u.transition.x : 0;
         influence = 1;
         light = max(light, 0.68f * opticalVisibility * smoothstep(0.04f, 0.3f, facing));
         boost = 1.8f + selected * 2.0f + regions[i].interaction.x * 0.35f;
+        if (p.position.w < 2.5f) p.appearance.x = max(p.appearance.x, 3.4f);
     }
     // Inactive particles are neutral white. Every active particle uses exactly one accent hue.
     bool active = influence > 0.20f;

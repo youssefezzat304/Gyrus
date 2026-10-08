@@ -58,7 +58,32 @@ final class BrainRenderer: NSObject, MTKViewDelegate {
     private var hoverParticleID = -1
     private(set) var lastFrame: CameraFrame?
     var onCanGoBackChanged: ((Bool) -> Void)?
+    var onParticleClicked: ((BrainAnchor) -> Void)?
+    var onPhaseChanged: ((BrainPhase) -> Void)?
+    var topicAnchors: [BrainAnchor] = []
+    var inputEnabled = true
     private var lastCanGoBack = false
+    private var reportedPhase: BrainPhase = .brain
+
+    private var renderedRegions: [ActiveRegion] {
+        regions + topicAnchors.filter { $0.particleID < particleCount - regions.count }.enumerated().map {
+            ActiveRegion(position: $0.element.position, normal: $0.element.normal, phase: Float($0.offset) * 2.399)
+        }
+    }
+
+    @discardableResult
+    func enterTopic(at anchor: BrainAnchor, size: SIMD2<Float>, time: Double? = nil) -> Bool {
+        guard camera.phase == .brain else { return false }
+        let regionIndex: Int
+        if anchor.particleID >= particleCount - regions.count { regionIndex = anchor.particleID - (particleCount - regions.count) }
+        else if let index = topicAnchors.filter({ $0.particleID < particleCount - regions.count })
+            .firstIndex(where: { $0.particleID == anchor.particleID }) { regionIndex = regions.count + index }
+        else { regionIndex = -1 }
+        camera.beginDive(at: anchor.position, selectedRegion: regionIndex, time: time ?? CACurrentMediaTime() - epoch,
+                         aspect: size.x / max(1, size.y))
+        pointerPosition = nil
+        return true
+    }
 
     @discardableResult
     func returnToBrain(time: Double? = nil) -> Bool {
@@ -134,13 +159,16 @@ final class BrainRenderer: NSObject, MTKViewDelegate {
         if camera.phase == .empty { view.needsDisplay = true }
     }
 
-    func click(size: SIMD2<Float>) {
-        guard camera.phase == .brain, let pointerPosition else { return }
-        let time = CACurrentMediaTime() - epoch
+    func click(size: SIMD2<Float>, time: Double? = nil) {
+        guard inputEnabled, camera.phase == .brain, let pointerPosition else { return }
+        let time = time ?? CACurrentMediaTime() - epoch
         let frame = camera.frame(time: time, aspect: size.x / max(1, size.y))
-        guard let region = InteractionController.hitTest(point: pointerPosition, regions: regions, frame: frame, size: size) else { return }
-        camera.beginDive(region: region, regions: regions, time: time, aspect: size.x / size.y)
-        hoveredRegion = nil
+        let picked = InteractionController.pickParticle(point: pointerPosition, particles: particles, frame: frame, size: size)
+        let fallback = InteractionController.hitTest(point: pointerPosition, regions: regions, frame: frame, size: size)
+            .map { particleCount - regions.count + $0 }
+        guard let index = picked ?? fallback else { return }
+        let particle = particles[index]
+        onParticleClicked?(BrainAnchor(particleID: index, position: particle.position.xyz, normal: particle.normal.xyz))
     }
 
     func draw(in view: MTKView) {
@@ -185,16 +213,20 @@ final class BrainRenderer: NSObject, MTKViewDelegate {
         guard let sceneTexture, let corticalDepthTexture, let bloomTexture, let blurredTexture else { throw BrainRendererError.allocationFailed }
         let frame = camera.frame(time: time, aspect: Float(width) / Float(height))
         lastFrame = frame
+        if reportedPhase != camera.phase {
+            reportedPhase = camera.phase
+            onPhaseChanged?(camera.phase)
+        }
         let canGoBack = camera.phase == .empty
         if canGoBack != lastCanGoBack {
             lastCanGoBack = canGoBack
             onCanGoBackChanged?(canGoBack)
         }
         let logicalSize = SIMD2(Float(width), Float(height)) / pixelScale
-        hoveredRegion = camera.phase == .brain ? pointerPosition.flatMap {
+        hoveredRegion = camera.phase == .brain && inputEnabled ? pointerPosition.flatMap {
             InteractionController.hitTest(point: $0, regions: regions, frame: frame, size: logicalSize)
         } : nil
-        hoveredParticle = camera.phase == .brain ? pointerPosition.flatMap {
+        hoveredParticle = camera.phase == .brain && inputEnabled ? pointerPosition.flatMap {
             InteractionController.pickParticle(point: $0, particles: particles, frame: frame, size: logicalSize)
         } : nil
         let dt = Float(min(0.1, max(0, time - previousTime)))
@@ -206,6 +238,8 @@ final class BrainRenderer: NSObject, MTKViewDelegate {
         let hoverTarget: Float = hoveredParticle == nil ? 0 : 1
         particleHoverAmount += (hoverTarget - particleHoverAmount) * (1 - exp(-dt * VisualConfiguration.hoverResponse))
         if camera.phase != .brain { particleHoverAmount = 0 }
+        let activeRegions = renderedRegions
+        if hoverAmounts.count != activeRegions.count { hoverAmounts = Array(repeating: 0, count: activeRegions.count) }
         for i in hoverAmounts.indices {
             let target: Float = hoveredRegion == i ? 1 : 0
             hoverAmounts[i] += (target - hoverAmounts[i]) * (1 - exp(-dt * VisualConfiguration.hoverResponse))
@@ -219,12 +253,23 @@ final class BrainRenderer: NSObject, MTKViewDelegate {
                 1 - smoothstep(c.fadeStartProgress, 1, frame.progress), 1 - smoothstep(c.violetFadeStartProgress, 1, frame.progress)),
             bloom: SIMD4(c.bloomStrength, c.bloomThreshold, c.exposure, c.backgroundIllumination),
             background: SIMD4(c.backgroundColor, c.corticalContrast), emptyBackground: SIMD4(c.emptyBackgroundColor, c.lightResponseGamma),
-            control: SIMD4(Float(regions.count), c.cameraNear, c.cameraFar, c.corticalOcclusionStrength),
+            control: SIMD4(Float(activeRegions.count), c.cameraNear, c.cameraFar, c.corticalOcclusionStrength),
             sprite: SIMD4(c.particleSpriteScale, c.hoverDepthTolerance, c.triangleFill, c.triangleStroke),
             hoverPoint: SIMD4(hoverParticlePosition, particleHoverAmount),
             hoverStyle: SIMD4(Float(hoverParticleID), c.hoverFalloffRadius, c.hoverCenterDiameter, c.hoverNeighborDiameter))
-        let gpuRegions = regions.enumerated().map { GPURegion(positionPhase: SIMD4($0.element.position, $0.element.phase),
-                                                             interaction: SIMD4(hoverAmounts[$0.offset], 0, 0, 0)) }
+        let extraAnchors = topicAnchors.filter { $0.particleID < particleCount - regions.count }
+        let gpuRegions = activeRegions.enumerated().map { index, region in
+            GPURegion(positionPhase: SIMD4(region.position, region.phase),
+                interaction: SIMD4(hoverAmounts[index], index >= regions.count ? Float(extraAnchors[index - regions.count].particleID) : -1, 0, 0))
+        }
+        let regionBytes = max(32, gpuRegions.count * MemoryLayout<GPURegion>.stride)
+        // The command buffer retains this snapshot; later frames cannot overwrite in-flight hover data.
+        guard let regionBuffer = device.makeBuffer(length: regionBytes, options: .storageModeShared) else {
+            throw BrainRendererError.allocationFailed
+        }
+        gpuRegions.withUnsafeBytes { bytes in
+            if let base = bytes.baseAddress { regionBuffer.contents().copyMemory(from: base, byteCount: bytes.count) }
+        }
         let depthPass = MTLRenderPassDescriptor()
         depthPass.depthAttachment.texture = corticalDepthTexture
         depthPass.depthAttachment.loadAction = .clear
@@ -251,7 +296,7 @@ final class BrainRenderer: NSObject, MTKViewDelegate {
             encoder.setVertexBuffer(particleBuffer, offset: 0, index: 0)
             encoder.setVertexTexture(corticalDepthTexture, index: 0)
             encoder.setVertexBytes(&uniforms, length: MemoryLayout<FrameUniforms>.stride, index: 1)
-            encoder.setVertexBytes(gpuRegions, length: gpuRegions.count * MemoryLayout<GPURegion>.stride, index: 2)
+            encoder.setVertexBuffer(regionBuffer, offset: 0, index: 2)
             encoder.drawPrimitives(type: .point, vertexStart: 0, vertexCount: particleCount)
         }
         encoder.endEncoding()

@@ -2,14 +2,9 @@ import SwiftUI
 import MetalKit
 import Combine
 
-final class BrainSession: ObservableObject {
-    @Published var canGoBack = false
-    var onBack: (() -> Void)?
-    func goBack() { onBack?() }
-}
-
 struct BrainView: NSViewRepresentable {
     @ObservedObject var session: BrainSession
+    @ObservedObject var store: TopicStore
 
     func makeNSView(context: Context) -> ParticleMetalView {
         let view = ParticleMetalView(frame: .zero, device: MTLCreateSystemDefaultDevice())
@@ -26,6 +21,20 @@ struct BrainView: NSViewRepresentable {
             renderer.onCanGoBackChanged = { [weak session] available in
                 session?.canGoBack = available
             }
+            renderer.onPhaseChanged = { [weak session] phase in session?.updatePhase(phase) }
+            renderer.onParticleClicked = { [weak session, weak store] anchor in
+                guard let store else { return }
+                session?.requestTopic(at: anchor, store: store)
+            }
+            renderer.topicAnchors = store.topics.map(\.anchor)
+            session.onEnter = { [weak view, weak store] anchor in
+                guard let view, let renderer = view.renderer, let store else { return nil }
+                renderer.topicAnchors = store.topics.map(\.anchor)
+                guard renderer.enterTopic(at: anchor, size: SIMD2(Float(view.bounds.width), Float(view.bounds.height))) else { return nil }
+                view.enableSetNeedsDisplay = false
+                view.isPaused = false
+                return renderer.camera.phase
+            }
             session.onBack = { [weak view] in
                 guard let view, view.renderer?.returnToBrain() == true else { return }
                 view.enableSetNeedsDisplay = false
@@ -38,7 +47,10 @@ struct BrainView: NSViewRepresentable {
         }
         return view
     }
-    func updateNSView(_ nsView: ParticleMetalView, context: Context) {}
+    func updateNSView(_ nsView: ParticleMetalView, context: Context) {
+        nsView.renderer?.topicAnchors = store.topics.map(\.anchor)
+        nsView.renderer?.inputEnabled = session.canSearch && !session.isSearchPresented
+    }
 }
 
 final class ParticleMetalView: MTKView {
@@ -65,7 +77,7 @@ final class ParticleMetalView: MTKView {
     override func mouseEntered(with event: NSEvent) { renderer?.pointerPosition = position(event) }
     override func mouseExited(with event: NSEvent) { renderer?.pointerPosition = nil }
     override func mouseDown(with event: NSEvent) {
-        guard renderer?.camera.phase == .brain else { return }
+        guard renderer?.inputEnabled == true, renderer?.camera.phase == .brain else { return }
         pressPosition = position(event)
         lastDragPosition = pressPosition
         didDrag = false

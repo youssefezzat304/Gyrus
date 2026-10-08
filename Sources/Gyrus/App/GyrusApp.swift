@@ -9,12 +9,14 @@ import SwiftUI
 
 @main
 struct GyrusApp: App {
+    @StateObject private var topics = TopicStore()
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(store: topics)
         }
         .defaultSize(width: 1200, height: 800)
         .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unifiedCompact)
+        .commands { TopicSearchCommands() }
     }
 }

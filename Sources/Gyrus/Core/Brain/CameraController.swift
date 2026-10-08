@@ -40,11 +40,16 @@ final class CameraController {
 
     func beginDive(region: Int, regions: [ActiveRegion], time: Double, aspect: Float) {
         guard phase == .brain, regions.indices.contains(region) else { return }
+        beginDive(at: regions[region].position, selectedRegion: region, time: time, aspect: aspect)
+    }
+
+    func beginDive(at position: SIMD3<Float>, selectedRegion region: Int = -1, time: Double, aspect: Float) {
+        guard phase == .brain else { return }
         let current = frame(time: time, aspect: aspect)
         diveModel = current.model
         diveBrainTime = time - idleTimeOffset
         selectedRegion = region
-        entry = (diveModel * SIMD4(regions[region].position, 1)).xyz
+        entry = (diveModel * SIMD4(position, 1)).xyz
         startEye = current.eye
         phase = .diving(region: region, startedAt: time)
     }
